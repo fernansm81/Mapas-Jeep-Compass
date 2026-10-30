@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeep Uconnect Map & Export Analyzer</title>
-    <!-- Tailwind CSS para un diseño limpio y moderno -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- JSZip para descomprimir y leer MapUpdate.zip en el navegador -->
+    <!-- JSZip para descomprimir en el navegador -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
@@ -28,9 +28,37 @@
             </label>
         </div>
 
-        <!-- Panel de resultados -->
+        <!-- Tarjeta de Resumen Ejecutivo -->
+        <div id="summaryCard" class="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-8 hidden">
+            <h2 class="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                <span>📊</span> Resumen del Sistema Uconnect
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Plataforma Hardware</p>
+                    <p id="platformInfo" class="text-base font-semibold text-amber-300">Panasonic VP4R MY18 EU</p>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Países Detectados</p>
+                    <p id="countriesCount" class="text-base font-semibold text-emerald-400">0 países</p>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Tamaño Cartografía</p>
+                    <p id="mapTotalSize" class="text-base font-semibold text-cyan-400">0 MB</p>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países e Idiomas en el Navegador</h3>
+                <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs">
+                    <!-- Badges de países -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de resultados detallados -->
         <div id="resultsPanel" class="bg-slate-800 rounded-xl p-6 hidden">
-            <h2 class="text-lg font-semibold text-amber-400 mb-4">Información del Paquete Analizado</h2>
+            <h2 class="text-lg font-semibold text-amber-400 mb-4">Estructura y Archivos de Metadatos</h2>
             <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300">
                 <!-- Los datos extraídos aparecerán aquí -->
             </div>
@@ -41,6 +69,10 @@
         const fileInput = document.getElementById('fileInput');
         const resultsPanel = document.getElementById('resultsPanel');
         const outputContent = document.getElementById('outputContent');
+        const summaryCard = document.getElementById('summaryCard');
+        const countriesCount = document.getElementById('countriesCount');
+        const mapTotalSize = document.getElementById('mapTotalSize');
+        const countryTags = document.getElementById('countryTags');
 
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -56,16 +88,30 @@
                 let fileListHtml = `<p class="text-emerald-400">✓ Archivo ZIP cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
                 fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
 
-                let foundMetadata = false;
+                const countries = new Set();
+                let totalMapBytes = 0;
 
-                // Recorrer los archivos dentro del ZIP
                 for (let filename of Object.keys(zipContent.files)) {
                     const zipEntry = zipContent.files[filename];
                     fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
 
-                    // Si encontramos archivos de configuración o metadatos, podemos leer su contenido
-                    if (filename.toLowerCase().includes('content') || filename.toLowerCase().includes('ini') || filename.toLowerCase().includes('txt')) {
-                        foundMetadata = true;
+                    // Analizar archivos .stm dentro de la carpeta 'luna' (cartografía)
+                    if (filename.includes('content/luna/') && filename.endsWith('.stm')) {
+                        const baseName = filename.split('/').pop().split('.')[0];
+                        if (baseName && baseName !== 'Basemap') {
+                            countries.add(baseName);
+                        }
+
+                        // Parsear el tamaño reportado en el metadato .stm
+                        const text = await zipEntry.async("text");
+                        const sizeMatch = text.match(/size\s*=\s*(\d+)/i);
+                        if (sizeMatch && sizeMatch[1]) {
+                            totalMapBytes += parseInt(sizeMatch[1], 10);
+                        }
+                    }
+
+                    // Mostrar contenido de ficheros .ini, .stm o .md5
+                    if (filename.toLowerCase().includes('content') || filename.toLowerCase().endsWith('.ini') || filename.toLowerCase().endsWith('.stm') || filename.toLowerCase().endsWith('.md5')) {
                         const text = await zipEntry.async("text");
                         fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
                     }
@@ -73,6 +119,16 @@
 
                 fileListHtml += `</ul>`;
                 outputContent.innerHTML = fileListHtml;
+
+                // Actualizar tarjeta resumen
+                countriesCount.textContent = `${countries.size} países`;
+                mapTotalSize.textContent = `${(totalMapBytes / (1024 * 1024)).toFixed(1)} MB`;
+                
+                countryTags.innerHTML = Array.from(countries).sort().map(c => 
+                    `<span class="bg-slate-800 text-amber-300 border border-slate-700 px-2 py-1 rounded">${c}</span>`
+                ).join('');
+
+                summaryCard.classList.remove('hidden');
 
             } catch (error) {
                 outputContent.innerHTML = `<p class="text-rose-400">Error al procesar el archivo: ${error.message}</p>`;
