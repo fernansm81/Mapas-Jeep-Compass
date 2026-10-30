@@ -48,8 +48,18 @@
                 </div>
             </div>
 
+            <!-- Módulo de Licencias y Firmas -->
+            <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                    <span>🔐</span> Verificador de Licencias y Firmas (.lyc / .lic / .md5)
+                </h3>
+                <div id="licensesContainer" class="text-xs text-slate-300 space-y-1">
+                    <p class="text-slate-500 italic">Buscando archivos de licencia y firmas...</p>
+                </div>
+            </div>
+
             <div>
-                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países e Idiomas en el Navegador</h3>
+                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países en el Navegador</h3>
                 <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs">
                     <!-- Badges de países -->
                 </div>
@@ -73,6 +83,7 @@
         const countriesCount = document.getElementById('countriesCount');
         const mapTotalSize = document.getElementById('mapTotalSize');
         const countryTags = document.getElementById('countryTags');
+        const licensesContainer = document.getElementById('licensesContainer');
 
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -89,20 +100,25 @@
                 fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
 
                 const countries = new Set();
+                const licenses = [];
                 let totalMapBytes = 0;
 
                 for (let filename of Object.keys(zipContent.files)) {
                     const zipEntry = zipContent.files[filename];
                     fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
 
-                    // Analizar archivos .stm dentro de la carpeta 'luna' (cartografía)
+                    // Detectar licencias (.lyc o .lic)
+                    if (filename.toLowerCase().endsWith('.lyc') || filename.toLowerCase().endsWith('.lic')) {
+                        licenses.push(filename);
+                    }
+
+                    // Analizar cartografía .stm
                     if (filename.includes('content/luna/') && filename.endsWith('.stm')) {
                         const baseName = filename.split('/').pop().split('.')[0];
                         if (baseName && baseName !== 'Basemap') {
                             countries.add(baseName);
                         }
 
-                        // Parsear el tamaño reportado en el metadato .stm
                         const text = await zipEntry.async("text");
                         const sizeMatch = text.match(/size\s*=\s*(\d+)/i);
                         if (sizeMatch && sizeMatch[1]) {
@@ -110,7 +126,7 @@
                         }
                     }
 
-                    // Mostrar contenido de ficheros .ini, .stm o .md5
+                    // Mostrar contenido clave
                     if (filename.toLowerCase().includes('content') || filename.toLowerCase().endsWith('.ini') || filename.toLowerCase().endsWith('.stm') || filename.toLowerCase().endsWith('.md5')) {
                         const text = await zipEntry.async("text");
                         fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
@@ -127,6 +143,18 @@
                 countryTags.innerHTML = Array.from(countries).sort().map(c => 
                     `<span class="bg-slate-800 text-amber-300 border border-slate-700 px-2 py-1 rounded">${c}</span>`
                 ).join('');
+
+                // Mostrar estado de licencias detectadas
+                if (licenses.length > 0) {
+                    licensesContainer.innerHTML = licenses.map(l => 
+                        `<div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                            <span class="text-amber-300 font-mono">${l}</span>
+                            <span class="text-emerald-400 font-semibold">✓ Licencia Encontrada</span>
+                         </div>`
+                    ).join('');
+                } else {
+                    licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete de huella.</p>`;
+                }
 
                 summaryCard.classList.remove('hidden');
 
