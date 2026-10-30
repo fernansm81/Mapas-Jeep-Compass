@@ -10,22 +10,37 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-5xl mx-auto">
         <header class="mb-8 border-b border-slate-800 pb-4">
             <h1 class="text-2xl font-bold text-amber-500">Jeep Uconnect MapTool</h1>
-            <p class="text-sm text-slate-400">Analizador local de paquetes de exportación y metadatos (Uconnect 8.4 - VP4R)</p>
+            <p class="text-sm text-slate-400">Analizador local de paquetes de exportación y comparador de versiones (Uconnect 8.4 - VP4R)</p>
         </header>
 
-        <!-- Zona de carga de archivos -->
-        <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-8 text-center mb-8 hover:border-amber-500 transition-colors">
-            <input type="file" id="fileInput" class="hidden" accept=".zip,.ini,.txt">
-            <label for="fileInput" class="cursor-pointer">
-                <svg class="w-12 h-12 mx-auto mb-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
-                <span class="font-semibold text-lg">Suelta aquí tu archivo MapUpdate.zip</span>
-                <p class="text-xs text-slate-400 mt-1">O haz clic para seleccionarlo desde tu equipo</p>
-            </label>
+        <!-- Zonas de Carga: Análisis Individual o Comparación -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Paquete Base / Actual -->
+            <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500 transition-colors">
+                <input type="file" id="fileInput1" class="hidden" accept=".zip,.ini,.txt">
+                <label for="fileInput1" class="cursor-pointer block">
+                    <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <span class="font-semibold text-base block">1. Paquete Base (Uconnect Export)</span>
+                    <p id="file1Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona el ZIP principal</p>
+                </label>
+            </div>
+
+            <!-- Paquete de Comparación (Opcional) -->
+            <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors">
+                <input type="file" id="fileInput2" class="hidden" accept=".zip,.ini,.txt">
+                <label for="fileInput2" class="cursor-pointer block">
+                    <svg class="w-10 h-10 mx-auto mb-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    <span class="font-semibold text-base block">2. Paquete a Comparar (Opcional)</span>
+                    <p id="file2Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona otro ZIP para comparar</p>
+                </label>
+            </div>
         </div>
 
         <!-- Tarjeta de Resumen Ejecutivo -->
@@ -60,23 +75,47 @@
 
             <div>
                 <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países en el Navegador</h3>
-                <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs">
-                    <!-- Badges de países -->
+                <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs"></div>
+            </div>
+        </div>
+
+        <!-- Panel de Comparación de Versiones (Aparece cuando se cargan los dos ZIPs) -->
+        <div id="comparisonPanel" class="bg-slate-800 border border-cyan-700/50 rounded-xl p-6 mb-8 hidden">
+            <h2 class="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                <span>⚖️</span> Comparativa de Versiones de Paquetes
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Diferencia de Tamaño Total</p>
+                    <p id="diffSize" class="text-base font-semibold text-cyan-300">0 MB</p>
                 </div>
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Ficheros Añadidos / Nuevos</p>
+                    <p id="diffAdded" class="text-base font-semibold text-emerald-400">0</p>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <p class="text-xs text-slate-400">Ficheros Eliminados / Ausentes</p>
+                    <p id="diffRemoved" class="text-base font-semibold text-rose-400">0</p>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Detalle de Cambios en Ficheros</h3>
+                <div id="diffDetails" class="max-h-60 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 font-mono text-xs space-y-1"></div>
             </div>
         </div>
 
         <!-- Panel de resultados detallados -->
         <div id="resultsPanel" class="bg-slate-800 rounded-xl p-6 hidden">
-            <h2 class="text-lg font-semibold text-amber-400 mb-4">Estructura y Archivos de Metadatos</h2>
-            <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300">
-                <!-- Los datos extraídos aparecerán aquí -->
-            </div>
+            <h2 class="text-lg font-semibold text-amber-400 mb-4">Estructura y Archivos de Metadatos (Paquete 1)</h2>
+            <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300"></div>
         </div>
     </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
+        const fileInput1 = document.getElementById('fileInput1');
+        const fileInput2 = document.getElementById('fileInput2');
+        const file1Name = document.getElementById('file1Name');
+        const file2Name = document.getElementById('file2Name');
         const resultsPanel = document.getElementById('resultsPanel');
         const outputContent = document.getElementById('outputContent');
         const summaryCard = document.getElementById('summaryCard');
@@ -84,11 +123,33 @@
         const mapTotalSize = document.getElementById('mapTotalSize');
         const countryTags = document.getElementById('countryTags');
         const licensesContainer = document.getElementById('licensesContainer');
+        const comparisonPanel = document.getElementById('comparisonPanel');
+        const diffSize = document.getElementById('diffSize');
+        const diffAdded = document.getElementById('diffAdded');
+        const diffRemoved = document.getElementById('diffRemoved');
+        const diffDetails = document.getElementById('diffDetails');
 
-        fileInput.addEventListener('change', async (e) => {
+        let zipData1 = null;
+        let zipData2 = null;
+
+        fileInput1.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            file1Name.textContent = file.name;
+            zipData1 = file;
+            await analyzePrimaryZip(file);
+            checkAndCompare();
+        });
 
+        fileInput2.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            file2Name.textContent = file.name;
+            zipData2 = file;
+            checkAndCompare();
+        });
+
+        async function analyzePrimaryZip(file) {
             outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
             resultsPanel.classList.remove('hidden');
 
@@ -107,12 +168,10 @@
                     const zipEntry = zipContent.files[filename];
                     fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
 
-                    // Detectar licencias (.lyc o .lic)
                     if (filename.toLowerCase().endsWith('.lyc') || filename.toLowerCase().endsWith('.lic')) {
                         licenses.push(filename);
                     }
 
-                    // Analizar cartografía .stm
                     if (filename.includes('content/luna/') && filename.endsWith('.stm')) {
                         const baseName = filename.split('/').pop().split('.')[0];
                         if (baseName && baseName !== 'Basemap') {
@@ -126,7 +185,6 @@
                         }
                     }
 
-                    // Mostrar contenido clave
                     if (filename.toLowerCase().includes('content') || filename.toLowerCase().endsWith('.ini') || filename.toLowerCase().endsWith('.stm') || filename.toLowerCase().endsWith('.md5')) {
                         const text = await zipEntry.async("text");
                         fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
@@ -136,7 +194,6 @@
                 fileListHtml += `</ul>`;
                 outputContent.innerHTML = fileListHtml;
 
-                // Actualizar tarjeta resumen
                 countriesCount.textContent = `${countries.size} países`;
                 mapTotalSize.textContent = `${(totalMapBytes / (1024 * 1024)).toFixed(1)} MB`;
                 
@@ -144,7 +201,6 @@
                     `<span class="bg-slate-800 text-amber-300 border border-slate-700 px-2 py-1 rounded">${c}</span>`
                 ).join('');
 
-                // Mostrar estado de licencias detectadas
                 if (licenses.length > 0) {
                     licensesContainer.innerHTML = licenses.map(l => 
                         `<div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
@@ -153,7 +209,7 @@
                          </div>`
                     ).join('');
                 } else {
-                    licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete de huella.</p>`;
+                    licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete.</p>`;
                 }
 
                 summaryCard.classList.remove('hidden');
@@ -161,7 +217,48 @@
             } catch (error) {
                 outputContent.innerHTML = `<p class="text-rose-400">Error al procesar el archivo: ${error.message}</p>`;
             }
-        });
+        }
+
+        async function checkAndCompare() {
+            if (!zipData1 || !zipData2) return;
+
+            try {
+                const zip1 = new JSZip();
+                const zip2 = new JSZip();
+                const content1 = await zip1.loadAsync(zipData1);
+                const content2 = await zip2.loadAsync(zipData2);
+
+                const keys1 = Object.keys(content1.files);
+                const keys2 = Object.keys(content2.files);
+
+                const set1 = new Set(keys1);
+                const set2 = new Set(keys2);
+
+                let added = keys2.filter(k => !set1.has(k) && !content2.files[k].dir);
+                let removed = keys1.filter(k => !set2.has(k) && !content1.files[k].dir);
+
+                let size1 = zipData1.size;
+                let size2 = zipData2.size;
+                let sizeDiff = size2 - size1;
+
+                diffSize.textContent = `${(sizeDiff / (1024 * 1024)).toFixed(2)} MB`;
+                diffAdded.textContent = added.length;
+                diffRemoved.textContent = removed.length;
+
+                let diffHtml = '';
+                added.forEach(f => diffHtml += `<div class="text-emerald-400">+ Añadido: ${f}</div>`);
+                removed.forEach(f => diffHtml += `<div class="text-rose-400">- Eliminado: ${f}</div>`);
+                if (added.length === 0 && removed.length === 0) {
+                    diffHtml = `<div class="text-slate-400 italic">Ambos paquetes tienen exactamente la misma estructura de ficheros.</div>`;
+                }
+
+                diffDetails.innerHTML = diffHtml;
+                comparisonPanel.classList.remove('hidden');
+
+            } catch (error) {
+                console.log("Error en comparación:", error);
+            }
+        }
 
         function escapeHtml(text) {
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
