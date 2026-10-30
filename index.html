@@ -1,439 +1,432 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeep Uconnect Map & Export Analyzer</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- JSZip para descomprimir y empaquetar en el navegador -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
-    <div class="max-w-5xl mx-auto">
-        <header class="mb-8 border-b border-slate-800 pb-4">
-            <h1 class="text-2xl font-bold text-amber-500">Jeep Uconnect MapTool</h1>
-            <p class="text-sm text-slate-400">Analizador, comparador, validador y empaquetador de actualizaciones (Uconnect 8.4 - VP4R)</p>
-        </header>
-
-        <!-- Zonas de Carga: Análisis Individual o Comparación -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <!-- Paquete Base / Actual -->
-            <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500 transition-colors">
-                <input type="file" id="fileInput1" class="hidden">
-                <label for="fileInput1" class="cursor-pointer block">
-                    <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    <span class="font-semibold text-base block">1. Paquete Base o Log de Uconnect</span>
-                    <p id="file1Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona el ZIP o fichero de log</p>
-                </label>
-            </div>
-
-            <!-- Paquete de Comparación (Opcional) -->
-            <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors">
-                <input type="file" id="fileInput2" class="hidden">
-                <label for="fileInput2" class="cursor-pointer block">
-                    <svg class="w-10 h-10 mx-auto mb-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                    </svg>
-                    <span class="font-semibold text-base block">2. Paquete a Comparar (Opcional)</span>
-                    <p id="file2Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona otro ZIP para comparar</p>
-                </label>
-            </div>
+    <!-- Zonas de Carga: Análisis Individual o Comparación -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500 transition-colors">
+            <input type="file" id="fileInput1" class="hidden">
+            <label for="fileInput1" class="cursor-pointer block">
+                <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <span class="font-semibold text-base block">1. Paquete Base o Log de Uconnect</span>
+                <p id="file1Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona el ZIP o fichero de log</p>
+            </label>
         </div>
 
-        <!-- Módulo de Creación / Empaquetador de Actualizaciones -->
-        <div class="bg-slate-800 border border-amber-600/50 rounded-xl p-6 mb-8">
-            <h2 class="text-lg font-bold text-amber-400 mb-2 flex items-center gap-2">
-                <span>🛠️</span> Generador de Paquete de Actualización (USB ready)
-            </h2>
-            <p class="text-xs text-slate-400 mb-4">Selecciona los ficheros de mapas (`.stm`, `.glr`, etc.) y licencias (`.lyc`) desde tu equipo para empaquetarlos automáticamente con la estructura oficial exigida por el Panasonic VP4R.</p>
-            
-            <div class="flex flex-wrap items-center gap-4">
-                <div>
-                    <input type="file" id="builderInput" class="hidden" multiple accept=".stm,.glr,.lyc,.lic,.md5,.ini,.txt">
-                    <label for="builderInput" class="cursor-pointer bg-amber-600 hover:bg-amber-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors inline-flex items-center gap-2">
-                        <span>📂</span> Seleccionar Ficheros para el Paquete
-                    </label>
-                </div>
-                <span id="builderFileCount" class="text-xs text-slate-300">Ningún fichero seleccionado</span>
-                <button id="buildZipBtn" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors hidden ml-auto" disabled>
-                    ⬇️ Generar y Descargar MapUpdate.zip
-                </button>
-            </div>
-        </div>
-
-        <!-- Tarjeta de Resumen Ejecutivo -->
-        <div id="summaryCard" class="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-8 hidden">
-            <h2 class="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
-                <span>📊</span> Resumen del Sistema Uconnect
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Plataforma Hardware</p>
-                    <p id="platformInfo" class="text-base font-semibold text-amber-300">Panasonic VP4R MY18 EU</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Países Detectados</p>
-                    <p id="countriesCount" class="text-base font-semibold text-emerald-400">0 países</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Tamaño Cartografía</p>
-                    <p id="mapTotalSize" class="text-base font-semibold text-cyan-400">0 MB</p>
-                </div>
-            </div>
-
-            <!-- Visor de Logs de Actualización -->
-            <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
-                <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                    <span>📋</span> Visor e Inspector de Logs del Sistema (.log / .txt)
-                </h3>
-                <div id="logsContainer" class="text-xs text-slate-300 space-y-1">
-                    <p class="text-slate-500 italic">No se han detectado archivos de registro o logs en este paquete.</p>
-                </div>
-            </div>
-
-            <!-- Validador de Estructura de Carpetas -->
-            <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
-                <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                    <span>📁</span> Validador de Estructura de Directorios (VP4R Schema)
-                </h3>
-                <div id="structureValidator" class="text-xs space-y-1.5"></div>
-            </div>
-
-            <!-- Módulo de Licencias y Firmas -->
-            <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
-                <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
-                    <span>🔐</span> Verificador de Licencias y Firmas (.lyc / .lic / .md5)
-                </h3>
-                <div id="licensesContainer" class="text-xs text-slate-300 space-y-1">
-                    <p class="text-slate-500 italic">Buscando archivos de licencia y firmas...</p>
-                </div>
-            </div>
-
-            <div>
-                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países en el Navegador</h3>
-                <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs"></div>
-            </div>
-        </div>
-
-        <!-- Panel de Comparación de Versiones -->
-        <div id="comparisonPanel" class="bg-slate-800 border border-cyan-700/50 rounded-xl p-6 mb-8 hidden">
-            <h2 class="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                <span>⚖️</span> Comparativa de Versiones de Paquetes
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Diferencia de Tamaño Total</p>
-                    <p id="diffSize" class="text-base font-semibold text-cyan-300">0 MB</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Ficheros Añadidos / Nuevos</p>
-                    <p id="diffAdded" class="text-base font-semibold text-emerald-400">0</p>
-                </div>
-                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <p class="text-xs text-slate-400">Ficheros Eliminados / Ausentes</p>
-                    <p id="diffRemoved" class="text-base font-semibold text-rose-400">0</p>
-                </div>
-            </div>
-            <div>
-                <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Detalle de Cambios en Ficheros</h3>
-                <div id="diffDetails" class="max-h-60 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 font-mono text-xs space-y-1"></div>
-            </div>
-        </div>
-
-        <!-- Panel de resultados detallados -->
-        <div id="resultsPanel" class="bg-slate-800 rounded-xl p-6 hidden">
-            <h2 class="text-lg font-semibold text-amber-400 mb-4">Estructura y Archivos de Metadatos (Paquete 1)</h2>
-            <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300"></div>
+        <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors">
+            <input type="file" id="fileInput2" class="hidden">
+            <label for="fileInput2" class="cursor-pointer block">
+                <svg class="w-10 h-10 mx-auto mb-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                <span class="font-semibold text-base block">2. Paquete a Comparar (Opcional)</span>
+                <p id="file2Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona otro ZIP para comparar</p>
+            </label>
         </div>
     </div>
 
-    <script>
-        const fileInput1 = document.getElementById('fileInput1');
-        const fileInput2 = document.getElementById('fileInput2');
-        const file1Name = document.getElementById('file1Name');
-        const file2Name = document.getElementById('file2Name');
-        const resultsPanel = document.getElementById('resultsPanel');
-        const outputContent = document.getElementById('outputContent');
-        const summaryCard = document.getElementById('summaryCard');
-        const countriesCount = document.getElementById('countriesCount');
-        const mapTotalSize = document.getElementById('mapTotalSize');
-        const countryTags = document.getElementById('countryTags');
-        const licensesContainer = document.getElementById('licensesContainer');
-        const logsContainer = document.getElementById('logsContainer');
-        const structureValidator = document.getElementById('structureValidator');
-        const comparisonPanel = document.getElementById('comparisonPanel');
-        const diffSize = document.getElementById('diffSize');
-        const diffAdded = document.getElementById('diffAdded');
-        const diffRemoved = document.getElementById('diffRemoved');
-        const diffDetails = document.getElementById('diffDetails');
+    <!-- Módulo de Creación / Empaquetador de Actualizaciones Avanzado -->
+    <div class="bg-slate-800 border border-amber-600/50 rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-bold text-amber-400 mb-2 flex items-center gap-2">
+            <span>🛠️</span> Generador de Paquete de Actualización (USB ready)
+        </h2>
+        <p class="text-xs text-slate-400 mb-4">Selecciona tus ficheros de cartografía (`.stm`, `.glr`, etc.) y licencias (`.lyc`). La herramienta generará automáticamente la estructura oficial VP4R junto con el archivo de metadatos `update.ini`.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Versión del Paquete / ID</label>
+                <input type="text" id="pkgVersion" value="EU_HERE_2026_Q1" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-amber-300 font-mono">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Plataforma Destino</label>
+                <input type="text" id="pkgPlatform" value="Panasonic_VP4R_EU" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-amber-300 font-mono">
+            </div>
+        </div>
 
-        // Builder elements
-        const builderInput = document.getElementById('builderInput');
-        const builderFileCount = document.getElementById('builderFileCount');
-        const buildZipBtn = document.getElementById('buildZipBtn');
+        <div class="flex flex-wrap items-center gap-4">
+            <div>
+                <input type="file" id="builderInput" class="hidden" multiple accept=".stm,.glr,.gls,.glt,.lyc,.lic,.md5,.ini,.txt">
+                <label for="builderInput" class="cursor-pointer bg-amber-600 hover:bg-amber-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors inline-flex items-center gap-2">
+                    <span>📂</span> Seleccionar Ficheros de Mapas y Licencias
+                </label>
+            </div>
+            <span id="builderFileCount" class="text-xs text-slate-300">Ningún fichero seleccionado</span>
+            <button id="buildZipBtn" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors hidden ml-auto" disabled>
+                ⬇️ Generar y Descargar MapUpdate_Ready.zip
+            </button>
+        </div>
+    </div>
 
-        let zipData1 = null;
-        let zipData2 = null;
-        let selectedBuilderFiles = [];
+    <!-- Tarjeta de Resumen Ejecutivo -->
+    <div id="summaryCard" class="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-8 hidden">
+        <h2 class="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+            <span>📊</span> Resumen del Sistema Uconnect
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Plataforma Hardware</p>
+                <p id="platformInfo" class="text-base font-semibold text-amber-300">Panasonic VP4R MY18 EU</p>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Países Detectados</p>
+                <p id="countriesCount" class="text-base font-semibold text-emerald-400">0 países</p>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Tamaño Cartografía</p>
+                <p id="mapTotalSize" class="text-base font-semibold text-cyan-400">0 MB</p>
+            </div>
+        </div>
 
-        fileInput1.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            file1Name.textContent = file.name;
-            zipData1 = file;
-            await analyzePrimaryFile(file);
-            checkAndCompare();
-        });
+        <!-- Visor de Logs de Actualización -->
+        <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                <span>📋</span> Visor e Inspector de Logs del Sistema (.log / .txt)
+            </h3>
+            <div id="logsContainer" class="text-xs text-slate-300 space-y-1">
+                <p class="text-slate-500 italic">No se han detectado archivos de registro o logs en este paquete.</p>
+            </div>
+        </div>
 
-        fileInput2.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            file2Name.textContent = file.name;
-            zipData2 = file;
-            checkAndCompare();
-        });
+        <!-- Validador de Estructura de Carpetas -->
+        <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                <span>📁</span> Validador de Estructura de Directorios (VP4R Schema)
+            </h3>
+            <div id="structureValidator" class="text-xs space-y-1.5"></div>
+        </div>
 
-        // Lógica del Generador de Actualización
-        builderInput.addEventListener('change', (e) => {
-            selectedBuilderFiles = Array.from(e.target.files);
-            if (selectedBuilderFiles.length > 0) {
-                builderFileCount.textContent = `${selectedBuilderFiles.length} ficheros seleccionados`;
-                buildZipBtn.classList.remove('hidden');
-                buildZipBtn.removeAttribute('disabled');
-            } else {
-                builderFileCount.textContent = `Ningún fichero seleccionado`;
-                buildZipBtn.classList.add('hidden');
-            }
-        });
+        <!-- Módulo de Licencias y Firmas -->
+        <div class="mb-6 bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h3 class="text-xs uppercase font-semibold text-amber-400 mb-2 flex items-center gap-1.5">
+                <span>🔐</span> Verificador de Licencias y Firmas (.lyc / .lic / .md5)
+            </h3>
+            <div id="licensesContainer" class="text-xs text-slate-300 space-y-1">
+                <p class="text-slate-500 italic">Buscando archivos de licencia y firmas...</p>
+            </div>
+        </div>
 
-        buildZipBtn.addEventListener('click', async () => {
-            if (selectedBuilderFiles.length === 0) return;
+        <div>
+            <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Desglose de Países en el Navegador</h3>
+            <div id="countryTags" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs"></div>
+        </div>
+    </div>
 
-            buildZipBtn.textContent = "⚙️ Generando ZIP...";
-            buildZipBtn.setAttribute('disabled', 'true');
+    <!-- Panel de Comparación de Versiones -->
+    <div id="comparisonPanel" class="bg-slate-800 border border-cyan-700/50 rounded-xl p-6 mb-8 hidden">
+        <h2 class="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+            <span>⚖️</span> Comparativa de Versiones de Paquetes
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Diferencia de Tamaño Total</p>
+                <p id="diffSize" class="text-base font-semibold text-cyan-300">0 MB</p>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Ficheros Añadidos / Nuevos</p>
+                <p id="diffAdded" class="text-base font-semibold text-emerald-400">0</p>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                <p class="text-xs text-slate-400">Ficheros Eliminados / Ausentes</p>
+                <p id="diffRemoved" class="text-base font-semibold text-rose-400">0</p>
+            </div>
+        </div>
+        <div>
+            <h3 class="text-xs uppercase font-semibold text-slate-400 mb-2">Detalle de Cambios en Ficheros</h3>
+            <div id="diffDetails" class="max-h-60 overflow-y-auto p-3 bg-slate-900 rounded-lg border border-slate-800 font-mono text-xs space-y-1"></div>
+        </div>
+    </div>
 
-            try {
-                const newZip = new JSZip();
-                // Estructura oficial requerida por Panasonic VP4R Uconnect
-                const updateFolder = newZip.folder("MapUpdate");
-                const contentFolder = updateFolder.folder("content");
-                const lunaFolder = contentFolder.folder("luna");
-                const licenseFolder = updateFolder.folder("license");
+    <!-- Panel de resultados detallados -->
+    <div id="resultsPanel" class="bg-slate-800 rounded-xl p-6 hidden">
+        <h2 class="text-lg font-semibold text-amber-400 mb-4">Estructura y Archivos de Metadatos (Paquete 1)</h2>
+        <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300"></div>
+    </div>
+</div>
 
-                for (let file of selectedBuilderFiles) {
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    if (ext === 'lyc' || ext === 'lic') {
-                        licenseFolder.file(file.name, file);
-                    } else if (ext === 'stm' || ext === 'glr' || ext === 'gls' || ext === 'glt') {
-                        lunaFolder.file(file.name, file);
-                    } else {
-                        // Por defecto a luna o raíz de update según el tipo
-                        updateFolder.file(file.name, file);
-                    }
-                }
+<script>
+    const fileInput1 = document.getElementById('fileInput1');
+    const fileInput2 = document.getElementById('fileInput2');
+    const file1Name = document.getElementById('file1Name');
+    const file2Name = document.getElementById('file2Name');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const outputContent = document.getElementById('outputContent');
+    const summaryCard = document.getElementById('summaryCard');
+    const countriesCount = document.getElementById('countriesCount');
+    const mapTotalSize = document.getElementById('mapTotalSize');
+    const countryTags = document.getElementById('countryTags');
+    const licensesContainer = document.getElementById('licensesContainer');
+    const logsContainer = document.getElementById('logsContainer');
+    const structureValidator = document.getElementById('structureValidator');
+    const comparisonPanel = document.getElementById('comparisonPanel');
+    const diffSize = document.getElementById('diffSize');
+    const diffAdded = document.getElementById('diffAdded');
+    const diffRemoved = document.getElementById('diffRemoved');
+    const diffDetails = document.getElementById('diffDetails');
 
-                // Generar blob del ZIP
-                const content = await newZip.generateAsync({ type: "blob" });
-                
-                // Descarga automática en el navegador
-                const url = window.URL.createObjectURL(content);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "MapUpdate_Custom.zip";
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
+    // Builder elements
+    const builderInput = document.getElementById('builderInput');
+    const builderFileCount = document.getElementById('builderFileCount');
+    const buildZipBtn = document.getElementById('buildZipBtn');
+    const pkgVersion = document.getElementById('pkgVersion');
+    const pkgPlatform = document.getElementById('pkgPlatform');
 
-                buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate.zip";
-                buildZipBtn.removeAttribute('disabled');
-            } catch (error) {
-                alert("Error al generar el paquete ZIP: " + error.message);
-                buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate.zip";
-                buildZipBtn.removeAttribute('disabled');
-            }
-        });
+    let zipData1 = null;
+    let zipData2 = null;
+    let selectedBuilderFiles = [];
 
-        async function analyzePrimaryFile(file) {
-            outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
-            resultsPanel.classList.remove('hidden');
+    fileInput1.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        file1Name.textContent = file.name;
+        zipData1 = file;
+        await analyzePrimaryFile(file);
+        checkAndCompare();
+    });
 
-            try {
-                if (file.name.endsWith('.log') || file.name.endsWith('.txt')) {
-                    const textContent = await file.text();
-                    outputContent.innerHTML = `<p class="text-emerald-400">✓ Fichero de texto/log cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>
-                                               <div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(textContent)}</pre></div>`;
-                    
-                    logsContainer.innerHTML = `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-amber-300 font-mono">${file.name}</span>
-                            <span class="text-cyan-400 font-semibold">Log Directo</span>
-                        </div>
-                        <pre class="bg-slate-900 p-2 rounded text-slate-300 overflow-x-auto max-h-40 text-[11px]">${escapeHtml(textContent)}</pre>
-                     </div>`;
-                    
-                    summaryCard.classList.remove('hidden');
-                    return;
-                }
+    fileInput2.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        file2Name.textContent = file.name;
+        zipData2 = file;
+        checkAndCompare();
+    });
 
-                const zip = new JSZip();
-                const zipContent = await zip.loadAsync(file);
-                
-                let fileListHtml = `<p class="text-emerald-400">✓ Archivo ZIP cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
-                fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
+    builderInput.addEventListener('change', (e) => {
+        selectedBuilderFiles = Array.from(e.target.files);
+        if (selectedBuilderFiles.length > 0) {
+            builderFileCount.textContent = `${selectedBuilderFiles.length} ficheros seleccionados`;
+            buildZipBtn.classList.remove('hidden');
+            buildZipBtn.removeAttribute('disabled');
+        } else {
+            builderFileCount.textContent = `Ningún fichero seleccionado`;
+            buildZipBtn.classList.add('hidden');
+        }
+    });
 
-                const filePaths = Object.keys(zipContent.files);
-                const countries = new Set();
-                const licenses = [];
-                const logs = [];
-                let totalMapBytes = 0;
+    buildZipBtn.addEventListener('click', async () => {
+        if (selectedBuilderFiles.length === 0) return;
 
-                for (let filename of filePaths) {
-                    const zipEntry = zipContent.files[filename];
-                    fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
+        buildZipBtn.textContent = "⚙️ Empaquetando...";
+        buildZipBtn.setAttribute('disabled', 'true');
 
-                    if (filename.toLowerCase().endsWith('.lyc') || filename.toLowerCase().endsWith('.lic')) {
-                        licenses.push(filename);
-                    }
+        try {
+            const newZip = new JSZip();
+            const updateFolder = newZip.folder("MapUpdate");
+            const contentFolder = updateFolder.folder("content");
+            const lunaFolder = contentFolder.folder("luna");
+            const licenseFolder = updateFolder.folder("license");
 
-                    if (filename.toLowerCase().endsWith('.log') || (filename.toLowerCase().endsWith('.txt') && filename.toLowerCase().includes('log'))) {
-                        const logText = await zipEntry.async("text");
-                        logs.push({ name: filename, content: logText });
-                    }
+            // Generar archivo update.ini automático para la unidad Panasonic VP4R
+            const iniContent = `[Package]\n` +
+                               `version = ${pkgVersion.value}\n` +
+                               `platform = ${pkgPlatform.value}\n` +
+                               `date = ${new Date().toISOString().split('T')[0]}\n` +
+                               `target = Panasonic_VP4R\n`;
+            updateFolder.file("update.ini", iniContent);
 
-                    if (filename.includes('content/luna/') && filename.endsWith('.stm')) {
-                        const baseName = filename.split('/').pop().split('.')[0];
-                        if (baseName && baseName !== 'Basemap') {
-                            countries.add(baseName);
-                        }
-
-                        const text = await zipEntry.async("text");
-                        const sizeMatch = text.match(/size\s*=\s*(\d+)/i);
-                        if (sizeMatch && sizeMatch[1]) {
-                            totalMapBytes += parseInt(sizeMatch[1], 10);
-                        }
-                    }
-
-                    if (filename.toLowerCase().includes('content') || filename.toLowerCase().endsWith('.ini') || filename.toLowerCase().endsWith('.stm') || filename.toLowerCase().endsWith('.md5')) {
-                        const text = await zipEntry.async("text");
-                        fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
-                    }
-                }
-
-                fileListHtml += `</ul>`;
-                outputContent.innerHTML = fileListHtml;
-
-                const hasMapUpdateRoot = filePaths.some(p => p.startsWith('MapUpdate/'));
-                const hasFingerprint = filePaths.some(p => p.includes('fingerprint/'));
-                const hasGlobalCfg = filePaths.some(p => p.includes('content/global_cfg/'));
-                const hasLunaMaps = filePaths.some(p => p.includes('content/luna/'));
-
-                structureValidator.innerHTML = `
-                    <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
-                        <span>Directorio Raíz <code class="text-amber-300">MapUpdate/</code></span>
-                        <span class="${hasMapUpdateRoot ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasMapUpdateRoot ? '✓ Válido' : '✗ No encontrado'}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
-                        <span>Árbol de Huella <code class="text-amber-300">fingerprint/</code></span>
-                        <span class="${hasFingerprint ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasFingerprint ? '✓ Detectado' : '✗ Ausente'}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
-                        <span>Configuraciones <code class="text-amber-300">content/global_cfg/</code></span>
-                        <span class="${hasGlobalCfg ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasGlobalCfg ? '✓ Presente' : '✗ Ausente'}</span>
-                    </div>
-                    <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
-                        <span>Cartografía Regional <code class="text-amber-300">content/luna/</code></span>
-                        <span class="${hasLunaMaps ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasLunaMaps ? '✓ Detectada' : '✗ Ausente'}</span>
-                    </div>
-                `;
-
-                countriesCount.textContent = `${countries.size} países`;
-                mapTotalSize.textContent = `${(totalMapBytes / (1024 * 1024)).toFixed(1)} MB`;
-                
-                countryTags.innerHTML = Array.from(countries).sort().map(c => 
-                    `<span class="bg-slate-800 text-amber-300 border border-slate-700 px-2 py-1 rounded">${c}</span>`
-                ).join('');
-
-                if (licenses.length > 0) {
-                    licensesContainer.innerHTML = licenses.map(l => 
-                        `<div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
-                            <span class="text-amber-300 font-mono">${l}</span>
-                            <span class="text-emerald-400 font-semibold">✓ Licencia Encontrada</span>
-                         </div>`
-                    ).join('');
+            for (let file of selectedBuilderFiles) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'lyc' || ext === 'lic') {
+                    licenseFolder.file(file.name, file);
+                } else if (ext === 'stm' || ext === 'glr' || ext === 'gls' || ext === 'glt') {
+                    lunaFolder.file(file.name, file);
                 } else {
-                    licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete.</p>`;
+                    updateFolder.file(file.name, file);
                 }
+            }
 
-                if (logs.length > 0) {
-                    logsContainer.innerHTML = logs.map(log => 
-                        `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-amber-300 font-mono">${log.name}</span>
-                                <span class="text-cyan-400 font-semibold">Log Analizado</span>
-                            </div>
-                            <pre class="bg-slate-900 p-2 rounded text-slate-300 overflow-x-auto max-h-40 text-[11px]">${escapeHtml(log.content)}</pre>
-                         </div>`
-                    ).join('');
-                } else {
-                    logsContainer.innerHTML = `<p class="text-slate-500 italic">No se encontraron archivos de registro o error en la estructura de este paquete.</p>`;
-                }
+            const content = await newZip.generateAsync({ type: "blob" });
+            const url = window.URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MapUpdate_${pkgVersion.value}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
 
+            buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate_Ready.zip";
+            buildZipBtn.removeAttribute('disabled');
+        } catch (error) {
+            alert("Error al generar el paquete ZIP: " + error.message);
+            buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate_Ready.zip";
+            buildZipBtn.removeAttribute('disabled');
+        }
+    });
+
+    async function analyzePrimaryFile(file) {
+        outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
+        resultsPanel.classList.remove('hidden');
+
+        try {
+            if (file.name.endsWith('.log') || file.name.endsWith('.txt')) {
+                const textContent = await file.text();
+                outputContent.innerHTML = `<p class="text-emerald-400">✓ Fichero de texto/log cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>
+                                           <div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(textContent)}</pre></div>`;
+                
+                logsContainer.innerHTML = `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-amber-300 font-mono">${file.name}</span>
+                        <span class="text-cyan-400 font-semibold">Log Directo</span>
+                    </div>
+                    <pre class="bg-slate-900 p-2 rounded text-slate-300 overflow-x-auto max-h-40 text-[11px]">${escapeHtml(textContent)}</pre>
+                 </div>`;
+                
                 summaryCard.classList.remove('hidden');
-
-            } catch (error) {
-                outputContent.innerHTML = `<p class="text-rose-400">Error al procesar el archivo: ${error.message}</p>`;
+                return;
             }
-        }
 
-        async function checkAndCompare() {
-            if (!zipData1 || !zipData2) return;
-            if (zipData1.name.endsWith('.log') || zipData1.name.endsWith('.txt') || zipData2.name.endsWith('.log') || zipData2.name.endsWith('.txt')) return;
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(file);
+            
+            let fileListHtml = `<p class="text-emerald-400">✓ Archivo ZIP cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
+            fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
 
-            try {
-                const zip1 = new JSZip();
-                const zip2 = new JSZip();
-                const content1 = await zip1.loadAsync(zipData1);
-                const content2 = await zip2.loadAsync(zipData2);
+            const filePaths = Object.keys(zipContent.files);
+            const countries = new Set();
+            const licenses = [];
+            const logs = [];
+            let totalMapBytes = 0;
 
-                const keys1 = Object.keys(content1.files);
-                const keys2 = Object.keys(content2.files);
+            for (let filename of filePaths) {
+                const zipEntry = zipContent.files[filename];
+                fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
 
-                const set1 = new Set(keys1);
-                const set2 = new Set(keys2);
-
-                let added = keys2.filter(k => !set1.has(k) && !content2.files[k].dir);
-                let removed = keys1.filter(k => !set2.has(k) && !content1.files[k].dir);
-
-                let size1 = zipData1.size;
-                let size2 = zipData2.size;
-                let sizeDiff = size2 - size1;
-
-                diffSize.textContent = `${(sizeDiff / (1024 * 1024)).toFixed(2)} MB`;
-                diffAdded.textContent = added.length;
-                diffRemoved.textContent = removed.length;
-
-                let diffHtml = '';
-                added.forEach(f => diffHtml += `<div class="text-emerald-400">+ Añadido: ${f}</div>`);
-                removed.forEach(f => diffHtml += `<div class="text-rose-400">- Eliminado: ${f}</div>`);
-                if (added.length === 0 && removed.length === 0) {
-                    diffHtml = `<div class="text-slate-400 italic">Ambos paquetes tienen exactamente la misma estructura de ficheros.</div>`;
+                if (filename.toLowerCase().endsWith('.lyc') || filename.toLowerCase().endsWith('.lic')) {
+                    licenses.push(filename);
                 }
 
-                diffDetails.innerHTML = diffHtml;
-                comparisonPanel.classList.remove('hidden');
+                if (filename.toLowerCase().endsWith('.log') || (filename.toLowerCase().endsWith('.txt') && filename.toLowerCase().includes('log'))) {
+                    const logText = await zipEntry.async("text");
+                    logs.push({ name: filename, content: logText });
+                }
 
-            } catch (error) {
-                console.log("Error en comparación:", error);
+                if (filename.includes('content/luna/') && filename.endsWith('.stm')) {
+                    const baseName = filename.split('/').pop().split('.')[0];
+                    if (baseName && baseName !== 'Basemap') {
+                        countries.add(baseName);
+                    }
+
+                    const text = await zipEntry.async("text");
+                    const sizeMatch = text.match(/size\s*=\s*(\d+)/i);
+                    if (sizeMatch && sizeMatch[1]) {
+                        totalMapBytes += parseInt(sizeMatch[1], 10);
+                    }
+                }
+
+                if (filename.toLowerCase().includes('content') || filename.toLowerCase().endsWith('.ini') || filename.toLowerCase().endsWith('.stm') || filename.toLowerCase().endsWith('.md5')) {
+                    const text = await zipEntry.async("text");
+                    fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
+                }
             }
-        }
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            fileListHtml += `</ul>`;
+            outputContent.innerHTML = fileListHtml;
+
+            const hasMapUpdateRoot = filePaths.some(p => p.startsWith('MapUpdate/'));
+            const hasFingerprint = filePaths.some(p => p.includes('fingerprint/'));
+            const hasGlobalCfg = filePaths.some(p => p.includes('content/global_cfg/'));
+            const hasLunaMaps = filePaths.some(p => p.includes('content/luna/'));
+
+            structureValidator.innerHTML = `
+                <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                    <span>Directorio Raíz <code class="text-amber-300">MapUpdate/</code></span>
+                    <span class="${hasMapUpdateRoot ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasMapUpdateRoot ? '✓ Válido' : '✗ No encontrado'}</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                    <span>Árbol de Huella <code class="text-amber-300">fingerprint/</code></span>
+                    <span class="${hasFingerprint ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasFingerprint ? '✓ Detectado' : '✗ Ausente'}</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                    <span>Configuraciones <code class="text-amber-300">content/global_cfg/</code></span>
+                    <span class="${hasGlobalCfg ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasGlobalCfg ? '✓ Presente' : '✗ Ausente'}</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                    <span>Cartografía Regional <code class="text-amber-300">content/luna/</code></span>
+                    <span class="${hasLunaMaps ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${hasLunaMaps ? '✓ Detectada' : '✗ Ausente'}</span>
+                </div>
+            `;
+
+            countriesCount.textContent = `${countries.size} países`;
+            mapTotalSize.textContent = `${(totalMapBytes / (1024 * 1024)).toFixed(1)} MB`;
+            
+            countryTags.innerHTML = Array.from(countries).sort().map(c => 
+                `<span class="bg-slate-800 text-amber-300 border border-slate-700 px-2 py-1 rounded">${c}</span>`
+            ).join('');
+
+            if (licenses.length > 0) {
+                licensesContainer.innerHTML = licenses.map(l => 
+                    `<div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-800">
+                        <span class="text-amber-300 font-mono">${l}</span>
+                        <span class="text-emerald-400 font-semibold">✓ Licencia Encontrada</span>
+                     </div>`
+                ).join('');
+            } else {
+                licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete.</p>`;
+            }
+
+            if (logs.length > 0) {
+                logsContainer.innerHTML = logs.map(log => 
+                    `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-amber-300 font-mono">${log.name}</span>
+                            <span class="text-cyan-400 font-semibold">Log Analizado</span>
+                        </div>
+                        <pre class="bg-slate-900 p-2 rounded text-slate-300 overflow-x-auto max-h-40 text-[11px]">${escapeHtml(log.content)}</pre>
+                     </div>`
+                ).join('');
+            } else {
+                logsContainer.innerHTML = `<p class="text-slate-500 italic">No se encontraron archivos de registro o error en la estructura de este paquete.</p>`;
+            }
+
+            summaryCard.classList.remove('hidden');
+
+        } catch (error) {
+            outputContent.innerHTML = `<p class="text-rose-400">Error al procesar el archivo: ${error.message}</p>`;
         }
-    </script>
-</body>
-</html>
+    }
+
+    async function checkAndCompare() {
+        if (!zipData1 || !zipData2) return;
+        if (zipData1.name.endsWith('.log') || zipData1.name.endsWith('.txt') || zipData2.name.endsWith('.log') || zipData2.name.endsWith('.txt')) return;
+
+        try {
+            const zip1 = new JSZip();
+            const zip2 = new JSZip();
+            const content1 = await zip1.loadAsync(zipData1);
+            const content2 = await zip2.loadAsync(zipData2);
+
+            const keys1 = Object.keys(content1.files);
+            const keys2 = Object.keys(content2.files);
+
+            const set1 = new Set(keys1);
+            const set2 = new Set(keys2);
+
+            let added = keys2.filter(k => !set1.has(k) && !content2.files[k].dir);
+            let removed = keys1.filter(k => !set2.has(k) && !content1.files[k].dir);
+
+            let size1 = zipData1.size;
+            let size2 = zipData2.size;
+            let sizeDiff = size2 - size1;
+
+            diffSize.textContent = `${(sizeDiff / (1024 * 1024)).toFixed(2)} MB`;
+            diffAdded.textContent = added.length;
+            diffRemoved.textContent = removed.length;
+
+            let diffHtml = '';
+            added.forEach(f => diffHtml += `<div class="text-emerald-400">+ Añadido: ${f}</div>`);
+            removed.forEach(f => diffHtml += `<div class="text-rose-400">- Eliminado: ${f}</div>`);
+            if (added.length === 0 && removed.length === 0) {
+                diffHtml = `<div class="text-slate-400 italic">Ambos paquetes tienen exactamente la misma estructura de ficheros.</div>`;
+            }
+
+            diffDetails.innerHTML = diffHtml;
+            comparisonPanel.classList.remove('hidden');
+
+        } catch (error) {
+            console.log("Error en comparación:", error);
+        }
+    }
+
+    function escapeHtml(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+</script>
