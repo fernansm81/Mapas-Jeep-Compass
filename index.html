@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeep Uconnect Map & Export Analyzer</title>
+    <!-- Tailwind CSS para un diseño limpio y moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip para descomprimir y leer MapUpdate.zip en el navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 border-b border-slate-800 pb-4">
+            <h1 class="text-2xl font-bold text-amber-500">Jeep Uconnect MapTool</h1>
+            <p class="text-sm text-slate-400">Analizador local de paquetes de exportación y metadatos (Uconnect 8.4 - VP4R)</p>
+        </header>
+
+        <!-- Zona de carga de archivos -->
+        <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-8 text-center mb-8 hover:border-amber-500 transition-colors">
+            <input type="file" id="fileInput" class="hidden" accept=".zip,.ini,.txt">
+            <label for="fileInput" class="cursor-pointer">
+                <svg class="w-12 h-12 mx-auto mb-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <span class="font-semibold text-lg">Suelta aquí tu archivo MapUpdate.zip</span>
+                <p class="text-xs text-slate-400 mt-1">O haz clic para seleccionarlo desde tu equipo</p>
+            </label>
+        </div>
+
+        <!-- Panel de resultados -->
+        <div id="resultsPanel" class="bg-slate-800 rounded-xl p-6 hidden">
+            <h2 class="text-lg font-semibold text-amber-400 mb-4">Información del Paquete Analizado</h2>
+            <div id="outputContent" class="space-y-3 font-mono text-sm text-slate-300">
+                <!-- Los datos extraídos aparecerán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const resultsPanel = document.getElementById('resultsPanel');
+        const outputContent = document.getElementById('outputContent');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
+            resultsPanel.classList.remove('hidden');
+
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+                
+                let fileListHtml = `<p class="text-emerald-400">✓ Archivo ZIP cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
+                fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
+
+                let foundMetadata = false;
+
+                // Recorrer los archivos dentro del ZIP
+                for (let filename of Object.keys(zipContent.files)) {
+                    const zipEntry = zipContent.files[filename];
+                    fileListHtml += `<li>${filename} (${zipEntry.dir ? 'Carpeta' : 'Fichero'})</li>`;
+
+                    // Si encontramos archivos de configuración o metadatos, podemos leer su contenido
+                    if (filename.toLowerCase().includes('content') || filename.toLowerCase().includes('ini') || filename.toLowerCase().includes('txt')) {
+                        foundMetadata = true;
+                        const text = await zipEntry.async("text");
+                        fileListHtml += `<div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(text)}</pre></div>`;
+                    }
+                }
+
+                fileListHtml += `</ul>`;
+                outputContent.innerHTML = fileListHtml;
+
+            } catch (error) {
+                outputContent.innerHTML = `<p class="text-rose-400">Error al procesar el archivo: ${error.message}</p>`;
+            }
+        });
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
