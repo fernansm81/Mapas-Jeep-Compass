@@ -6,14 +6,14 @@
     <title>Jeep Uconnect Map & Export Analyzer</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- JSZip para descomprimir en el navegador -->
+    <!-- JSZip para descomprimir y empaquetar en el navegador -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
     <div class="max-w-5xl mx-auto">
         <header class="mb-8 border-b border-slate-800 pb-4">
             <h1 class="text-2xl font-bold text-amber-500">Jeep Uconnect MapTool</h1>
-            <p class="text-sm text-slate-400">Analizador local, validador de estructura y visor de logs de actualización (Uconnect 8.4 - VP4R)</p>
+            <p class="text-sm text-slate-400">Analizador, comparador, validador y empaquetador de actualizaciones (Uconnect 8.4 - VP4R)</p>
         </header>
 
         <!-- Zonas de Carga: Análisis Individual o Comparación -->
@@ -40,6 +40,27 @@
                     <span class="font-semibold text-base block">2. Paquete a Comparar (Opcional)</span>
                     <p id="file2Name" class="text-xs text-slate-400 mt-1">Arrastra o selecciona otro ZIP para comparar</p>
                 </label>
+            </div>
+        </div>
+
+        <!-- Módulo de Creación / Empaquetador de Actualizaciones -->
+        <div class="bg-slate-800 border border-amber-600/50 rounded-xl p-6 mb-8">
+            <h2 class="text-lg font-bold text-amber-400 mb-2 flex items-center gap-2">
+                <span>🛠️</span> Generador de Paquete de Actualización (USB ready)
+            </h2>
+            <p class="text-xs text-slate-400 mb-4">Selecciona los ficheros de mapas (`.stm`, `.glr`, etc.) y licencias (`.lyc`) desde tu equipo para empaquetarlos automáticamente con la estructura oficial exigida por el Panasonic VP4R.</p>
+            
+            <div class="flex flex-wrap items-center gap-4">
+                <div>
+                    <input type="file" id="builderInput" class="hidden" multiple accept=".stm,.glr,.lyc,.lic,.md5,.ini,.txt">
+                    <label for="builderInput" class="cursor-pointer bg-amber-600 hover:bg-amber-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors inline-flex items-center gap-2">
+                        <span>📂</span> Seleccionar Ficheros para el Paquete
+                    </label>
+                </div>
+                <span id="builderFileCount" class="text-xs text-slate-300">Ningún fichero seleccionado</span>
+                <button id="buildZipBtn" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-semibold px-4 py-2 rounded-lg text-xs transition-colors hidden ml-auto" disabled>
+                    ⬇️ Generar y Descargar MapUpdate.zip
+                </button>
             </div>
         </div>
 
@@ -149,8 +170,14 @@
         const diffRemoved = document.getElementById('diffRemoved');
         const diffDetails = document.getElementById('diffDetails');
 
+        // Builder elements
+        const builderInput = document.getElementById('builderInput');
+        const builderFileCount = document.getElementById('builderFileCount');
+        const buildZipBtn = document.getElementById('buildZipBtn');
+
         let zipData1 = null;
         let zipData2 = null;
+        let selectedBuilderFiles = [];
 
         fileInput1.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -169,12 +196,72 @@
             checkAndCompare();
         });
 
+        // Lógica del Generador de Actualización
+        builderInput.addEventListener('change', (e) => {
+            selectedBuilderFiles = Array.from(e.target.files);
+            if (selectedBuilderFiles.length > 0) {
+                builderFileCount.textContent = `${selectedBuilderFiles.length} ficheros seleccionados`;
+                buildZipBtn.classList.remove('hidden');
+                buildZipBtn.removeAttribute('disabled');
+            } else {
+                builderFileCount.textContent = `Ningún fichero seleccionado`;
+                buildZipBtn.classList.add('hidden');
+            }
+        });
+
+        buildZipBtn.addEventListener('click', async () => {
+            if (selectedBuilderFiles.length === 0) return;
+
+            buildZipBtn.textContent = "⚙️ Generando ZIP...";
+            buildZipBtn.setAttribute('disabled', 'true');
+
+            try {
+                const newZip = new JSZip();
+                // Estructura oficial requerida por Panasonic VP4R Uconnect
+                const updateFolder = newZip.folder("MapUpdate");
+                const contentFolder = updateFolder.folder("content");
+                const lunaFolder = contentFolder.folder("luna");
+                const licenseFolder = updateFolder.folder("license");
+
+                for (let file of selectedBuilderFiles) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (ext === 'lyc' || ext === 'lic') {
+                        licenseFolder.file(file.name, file);
+                    } else if (ext === 'stm' || ext === 'glr' || ext === 'gls' || ext === 'glt') {
+                        lunaFolder.file(file.name, file);
+                    } else {
+                        // Por defecto a luna o raíz de update según el tipo
+                        updateFolder.file(file.name, file);
+                    }
+                }
+
+                // Generar blob del ZIP
+                const content = await newZip.generateAsync({ type: "blob" });
+                
+                // Descarga automática en el navegador
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "MapUpdate_Custom.zip";
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate.zip";
+                buildZipBtn.removeAttribute('disabled');
+            } catch (error) {
+                alert("Error al generar el paquete ZIP: " + error.message);
+                buildZipBtn.textContent = "⬇️ Generar y Descargar MapUpdate.zip";
+                buildZipBtn.removeAttribute('disabled');
+            }
+        });
+
         async function analyzePrimaryFile(file) {
             outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
             resultsPanel.classList.remove('hidden');
 
             try {
-                // Comprobar si es un archivo ZIP o un archivo de texto/log suelto
                 if (file.name.endsWith('.log') || file.name.endsWith('.txt')) {
                     const textContent = await file.text();
                     outputContent.innerHTML = `<p class="text-emerald-400">✓ Fichero de texto/log cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>
@@ -192,7 +279,6 @@
                     return;
                 }
 
-                // Si es un archivo ZIP
                 const zip = new JSZip();
                 const zipContent = await zip.loadAsync(file);
                 
@@ -305,7 +391,6 @@
 
         async function checkAndCompare() {
             if (!zipData1 || !zipData2) return;
-            // Si el paquete 1 o 2 no es un ZIP válido (ej. es un .log), omitimos la comparación estructural ZIP
             if (zipData1.name.endsWith('.log') || zipData1.name.endsWith('.txt') || zipData2.name.endsWith('.log') || zipData2.name.endsWith('.txt')) return;
 
             try {
