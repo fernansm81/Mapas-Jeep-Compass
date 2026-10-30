@@ -20,7 +20,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <!-- Paquete Base / Actual -->
             <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-amber-500 transition-colors">
-                <input type="file" id="fileInput1" class="hidden" accept=".zip,.ini,.txt,.log">
+                <input type="file" id="fileInput1" class="hidden">
                 <label for="fileInput1" class="cursor-pointer block">
                     <svg class="w-10 h-10 mx-auto mb-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
@@ -32,7 +32,7 @@
 
             <!-- Paquete de Comparación (Opcional) -->
             <div class="bg-slate-800 border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-cyan-500 transition-colors">
-                <input type="file" id="fileInput2" class="hidden" accept=".zip,.ini,.txt,.log">
+                <input type="file" id="fileInput2" class="hidden">
                 <label for="fileInput2" class="cursor-pointer block">
                     <svg class="w-10 h-10 mx-auto mb-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
@@ -157,7 +157,7 @@
             if (!file) return;
             file1Name.textContent = file.name;
             zipData1 = file;
-            await analyzePrimaryZip(file);
+            await analyzePrimaryFile(file);
             checkAndCompare();
         });
 
@@ -169,15 +169,34 @@
             checkAndCompare();
         });
 
-        async function analyzePrimaryZip(file) {
+        async function analyzePrimaryFile(file) {
             outputContent.innerHTML = `<p class="text-amber-300">Analizando ${file.name}...</p>`;
             resultsPanel.classList.remove('hidden');
 
             try {
+                // Comprobar si es un archivo ZIP o un archivo de texto/log suelto
+                if (file.name.endsWith('.log') || file.name.endsWith('.txt')) {
+                    const textContent = await file.text();
+                    outputContent.innerHTML = `<p class="text-emerald-400">✓ Fichero de texto/log cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>
+                                               <div class="bg-slate-900 p-3 rounded mt-2 border border-slate-700 text-xs overflow-x-auto"><pre>${escapeHtml(textContent)}</pre></div>`;
+                    
+                    logsContainer.innerHTML = `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-amber-300 font-mono">${file.name}</span>
+                            <span class="text-cyan-400 font-semibold">Log Directo</span>
+                        </div>
+                        <pre class="bg-slate-900 p-2 rounded text-slate-300 overflow-x-auto max-h-40 text-[11px]">${escapeHtml(textContent)}</pre>
+                     </div>`;
+                    
+                    summaryCard.classList.remove('hidden');
+                    return;
+                }
+
+                // Si es un archivo ZIP
                 const zip = new JSZip();
                 const zipContent = await zip.loadAsync(file);
                 
-                let fileListHtml = `<p class="text-emerald-400">✓ Archivo cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
+                let fileListHtml = `<p class="text-emerald-400">✓ Archivo ZIP cargado correctamente (${(file.size / 1024).toFixed(1)} KB)</p>`;
                 fileListHtml += `<p class="text-slate-400 mt-2">Contenido interno detectado:</p><ul class="list-disc pl-5 space-y-1 text-xs text-slate-300">`;
 
                 const filePaths = Object.keys(zipContent.files);
@@ -194,7 +213,6 @@
                         licenses.push(filename);
                     }
 
-                    // Detectar ficheros de log (.log o .txt con referencias a update/error)
                     if (filename.toLowerCase().endsWith('.log') || (filename.toLowerCase().endsWith('.txt') && filename.toLowerCase().includes('log'))) {
                         const logText = await zipEntry.async("text");
                         logs.push({ name: filename, content: logText });
@@ -222,7 +240,6 @@
                 fileListHtml += `</ul>`;
                 outputContent.innerHTML = fileListHtml;
 
-                // Validación de estructura esperada VP4R
                 const hasMapUpdateRoot = filePaths.some(p => p.startsWith('MapUpdate/'));
                 const hasFingerprint = filePaths.some(p => p.includes('fingerprint/'));
                 const hasGlobalCfg = filePaths.some(p => p.includes('content/global_cfg/'));
@@ -265,7 +282,6 @@
                     licensesContainer.innerHTML = `<p class="text-amber-400 italic">No se han detectado archivos de licencia directos en este paquete.</p>`;
                 }
 
-                // Mostrar logs encontrados
                 if (logs.length > 0) {
                     logsContainer.innerHTML = logs.map(log => 
                         `<div class="bg-slate-800 p-3 rounded border border-slate-800 space-y-2">
@@ -289,6 +305,8 @@
 
         async function checkAndCompare() {
             if (!zipData1 || !zipData2) return;
+            // Si el paquete 1 o 2 no es un ZIP válido (ej. es un .log), omitimos la comparación estructural ZIP
+            if (zipData1.name.endsWith('.log') || zipData1.name.endsWith('.txt') || zipData2.name.endsWith('.log') || zipData2.name.endsWith('.txt')) return;
 
             try {
                 const zip1 = new JSZip();
